@@ -13,13 +13,13 @@ find_package(
     tf2
     tf2_ros
     tf2_geometry_msgs
+    dynamic_reconfigure
     ##robotics_hw1
 )
 
-##generate_dynamic_reconfigure_options(
-  ##cfg/Integration.cfg
-  
-##)
+generate_dynamic_reconfigure_options(
+  cfg/integration.cfg
+)
 
 add_service_files(
   FILES
@@ -68,5 +68,5 @@ target_link_libraries(estimate ${catkin_LIBRARIES})
 add_executable(odometry src/odometry.cpp)
 add_dependencies(odometry ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(odometry project1_generate_messages_cpp) 
-##add_dependencies(param_second ${PROJECT_NAME}_gencfg) ##for param config
+add_dependencies(odometry ${PROJECT_NAME}_gencfg) ##for param config
 target_link_libraries(odometry ${catkin_LIBRARIES})

@@ -11,6 +11,8 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <math.h>
 #include <sstream>
+#include <dynamic_reconfigure/server.h>
+#include <project1/integrationConfig.h>
 #include "project1/RiCentra.h"
 #include "project1/RiPosiziona.h"
 
@@ -33,45 +35,57 @@ class Odometry{
     double va;
 
 	ros::NodeHandle n;
+
+    //pub-sub
     ros::Subscriber sub; 
   	ros::Publisher pub; 
   	ros::Timer timer1;
+
+    //services
     ros::ServiceServer riCentra;
     ros::ServiceServer riPosiziona;
 
+    //odometry
     tf2_ros::TransformBroadcaster br;
     geometry_msgs::TransformStamped transformStamped;
     nav_msgs::Odometry odom;
 
-    double initial_x;
+    //param reconfigure
+
+    /*double initial_x;
     double initial_y;
-    double initial_th;
+    double initial_th;*/
+    int integration_type; //0 -> Euler 1 -> Runge-Kutta
+
 
 
 
 	public:
 
-    Odometry(){
-        n.getParam("/Initial_x", initial_x);
-        n.getParam("/Initial_y", initial_y);
-        n.getParam("/Initial_th", initial_th);
+    Odometry(ros::NodeHandle node){
 
-        x=initial_x;
+        n = node;
+
+        //static param configuration
+        n.getParam("/Initial_x", x);
+        n.getParam("/Initial_y", y);
+        n.getParam("/Initial_th", th);
+
+        /*x=initial_x;
         y=initial_y;
-        th=initial_th;
+        th=initial_th;*/
 
         ROS_INFO ("Initial pose x: ( %f ) y: ( %f ) z: ( %f )", x, y, th);
 
-        //subscriber part:
+        //subscriber part
         sub = n.subscribe("/rechatterVel", 1, &Odometry::callback_s, this);
 
 
         //publisher part
 		pub = n.advertise<nav_msgs::Odometry>("/rechatterOdom", 1);
     	ROS_INFO_STREAM ("creatore");
-        
 
-  //service part
+        //service part
         riCentra = n.advertiseService("ricentra", &Odometry::ricentra, this);
         riPosiziona = n.advertiseService("riposiziona", &Odometry::riposiziona, this);
         
@@ -80,11 +94,27 @@ class Odometry{
         //n.getParam("/Initial_pose", initial_pose);
     }
 
+    //param reconfigure: getter and setter
+    int getIntegrationType(){ 
+        return integration_type; 
+    }
+    void setIntegrationType(int integrationType){ 
+        integration_type = integrationType; 
+    }
+	
+
 	void callback_s(const geometry_msgs::TwistStamped::ConstPtr& mt) {
         ROS_INFO_STREAM ("sono nel callabak");
         vl = mt->twist.linear.x;
         va = mt->twist.angular.z;
-        rkOdom(vl, va);
+        if (getIntegrationType() == 0)
+            eulerOdom(vl, va);
+        else
+            if (getIntegrationType() == 1)
+                rkOdom(vl, va);
+
+        publish();
+        
 	}
 
 	void eulerOdom(double vl, double va){
@@ -92,11 +122,11 @@ class Odometry{
         x = x + vl * Ts * cos(th); /*x(t+1)=x(t) + v * T * cos(th)*/
 	    y = y + vl * Ts * sin(th);
 	    th = th + va * Ts;
-        publish();
+        
     }
 
     void rkOdom(double vl, double va){
-        publish();
+        ROS_INFO_STREAM("sono nella rkOdom");
         x = x + vl * Ts * cos(th + va*Ts/2);
         y = y + vl * Ts * sin(th + va*Ts/2);
         th = th + va * Ts;
@@ -158,6 +188,7 @@ class Odometry{
     }
 
 
+
     bool ricentra(project1::RiCentra::Request  &req, project1::RiCentra::Response  &resp)
     {
         ROS_INFO("Richiesta di ricentrare l'odom");
@@ -175,12 +206,17 @@ class Odometry{
         th=req.th;
         return true;
     }
-	
+
 
 
 };
 
 
+void dynrec(project1::integrationConfig &config, uint32_t level, Odometry *o) {  //code to adapt to parameter change
+        ROS_INFO("Reconfigure Request: %d", config.integration);
+            o->setIntegrationType((int) config.integration);
+        ROS_INFO ("%d",level);
+}
 
 
 
@@ -188,10 +224,23 @@ class Odometry{
 
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "subBag_pubVel");
-  Odometry my_Odometry;
-  ros::spin();
-        
-  return 0;
+    ros::init(argc, argv, "my_odom");
+    ros::NodeHandle node;
+    Odometry *my_odometry=NULL;
+    my_odometry = new Odometry(node);
+  
+    
+    dynamic_reconfigure::Server<project1::integrationConfig> server;  //defining the obj that will deal with listener parameters changing
+    dynamic_reconfigure::Server<project1::integrationConfig>::CallbackType f;  // obj of type callback to wrap your function. Uses boost library
+
+    //dynamic reconfigure part
+    f = boost::bind(&dynrec, _1, _2, my_odometry);  //2 arguments
+    server.setCallback(f);  // passed to the server
+
+
+
+    ros::spin();
+
+    return 0;
 }
 

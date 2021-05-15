@@ -43,10 +43,11 @@ class Estimator{
 
 	public:
 
-    Estimator(){
+    Estimator(ros::NodeHandle node){
 
         vx =0;
         vth=0;
+		n = node;
 /*
         //subscriber part: message filters
         //message_filters::Subscriber<project1::MotorSpeed> sub_fl(n,  "/motor_speed_fl", 1);	
@@ -138,21 +139,22 @@ class Estimator{
 };
 
 void callback_s(const project1::MotorSpeed::ConstPtr& speedMotor_fl, const project1::MotorSpeed::ConstPtr& speedMotor_fr, const project1::MotorSpeed::ConstPtr& speedMotor_rl, const project1::MotorSpeed::ConstPtr& speedMotor_rr, Estimator *robot) {
-	    ROS_INFO ("Front-left: ( %f ) Front-right: ( %f ) Rear-left: ( %f ) Rear-right: ( %f )", speedMotor_fl->rpm, speedMotor_fr->rpm, speedMotor_rl->rpm, speedMotor_rr->rpm);
+	   // ROS_INFO ("Front-left: ( %f ) Front-right: ( %f ) Rear-left: ( %f ) Rear-right: ( %f )", speedMotor_fl->rpm, speedMotor_fr->rpm, speedMotor_rl->rpm, speedMotor_rr->rpm);
 	    robot->computeVel(speedMotor_fl->rpm, speedMotor_fr->rpm, speedMotor_rl->rpm, speedMotor_rr->rpm);
 }
 
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "subBag_pubVelo");
+  ros::NodeHandle node;
   Estimator *my_estimator=NULL;
-  my_estimator = new Estimator();
-  ros::NodeHandle sub_node;
+  my_estimator = new Estimator(node);
+  
 
-  message_filters::Subscriber<project1::MotorSpeed> sub_fl(sub_node,  "/motor_speed_fl", 1);	/*mi "iscrivo ai 4 topic*/
-  message_filters::Subscriber<project1::MotorSpeed> sub_fr(sub_node,  "/motor_speed_fr", 1);
-  message_filters::Subscriber<project1::MotorSpeed> sub_rl(sub_node,  "/motor_speed_rl", 1);
-  message_filters::Subscriber<project1::MotorSpeed> sub_rr(sub_node,  "/motor_speed_rr", 1);	
+  message_filters::Subscriber<project1::MotorSpeed> sub_fl(node,  "/motor_speed_fl", 1);	/*mi "iscrivo ai 4 topic*/
+  message_filters::Subscriber<project1::MotorSpeed> sub_fr(node,  "/motor_speed_fr", 1);
+  message_filters::Subscriber<project1::MotorSpeed> sub_rl(node,  "/motor_speed_rl", 1);
+  message_filters::Subscriber<project1::MotorSpeed> sub_rr(node,  "/motor_speed_rr", 1);	
 	
   message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), sub_fl, sub_fr, sub_rl, sub_rr);
   sync.registerCallback(boost::bind(&callback_s, _1, _2, _3, _4, my_estimator));

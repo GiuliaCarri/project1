@@ -1,15 +1,15 @@
 <launch>
     
-    <!--Initializing the pose-->
-    <rosparam param="Initial_pose">[2, 2, 2]</rosparam>
+    <!--Initializing the pose
+    <rosparam param="Initial_pose">[2, 2, 2]</rosparam>-->
 
     <rosparam param="Initial_x">0</rosparam>
     <rosparam param="Initial_y">0</rosparam>
     <rosparam param="Initial_th">0</rosparam>
-    <!--or-->
+    <!--or
     <arg name="Initial_pose" default="[2, 2, 2]"/>
     <rosparam param="Initial_pose" subst_value="True">$(arg Initial_pose)</rosparam>
-
+    -->
     <node pkg="project1" name="estimate" type="estimate" output="screen"/>
     <node pkg="project1" name="odometry" type="odometry" output="screen"/>
 
