@@ -8,12 +8,12 @@
 
 #define _USE_MATH_DEFINES
 #define STEERING_FACTOR 18.0
-#define BASELINE 1.3  //real baseline = 0.583 m
+#define BASELINE 1  //real baseline = 0.583 m
 #define INTERAXIS 1.765
 #define CIRC 0.9896  //2*pi*R, where R = 0.1575 m
-#define GR 37.5 //per ogni giro del motore la ruota fa 1/35 - 1/40 giri
+#define GR 390 //per ogni giro del motore la ruota fa 1/35 - 1/40 giri
 
-//typedef message_filters::sync_policies::ApproximateTime<project1::MotorSpeed, project1::MotorSpeed, project1::MotorSpeed, project1::MotorSpeed> MySyncPolicy;
+typedef message_filters::sync_policies::ApproximateTime<project1::MotorSpeed, project1::MotorSpeed, project1::MotorSpeed, project1::MotorSpeed> MySyncPolicy;
 
 
 class Estimator{
@@ -47,9 +47,9 @@ class Estimator{
 
         vx =0;
         vth=0;
-
+/*
         //subscriber part: message filters
-        //message_filters::Subscriber<project1::MotorSpeed> sub_fl(n,  "/motor_speed_fl", 1);	/*mi "iscrivo ai 4 topic*/
+        //message_filters::Subscriber<project1::MotorSpeed> sub_fl(n,  "/motor_speed_fl", 1);	
 	    //message_filters::Subscriber<project1::MotorSpeed> sub_fr(n,  "/motor_speed_fr", 1);
 	    //message_filters::Subscriber<project1::MotorSpeed> sub_rl(n,  "/motor_speed_rl", 1);
 	    //message_filters::Subscriber<project1::MotorSpeed> sub_rr(n,  "/motor_speed_rr", 1);	
@@ -65,7 +65,7 @@ class Estimator{
  		
 	    //message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), sub_fl, sub_fr, sub_rl, sub_rr);
   	    //sync.registerCallback(boost::bind(&Estimator::callback_s, this, _1, _2, _3, _4));
-	
+*/	
         //publisher part
 
 		pub = n.advertise<geometry_msgs::TwistStamped>("/rechatterVel", 1);
@@ -73,7 +73,7 @@ class Estimator{
         
     }
 
-	void callback_s_fl(const project1::MotorSpeed::ConstPtr& speedMotor_fl){
+/*	void callback_s_fl(const project1::MotorSpeed::ConstPtr& speedMotor_fl){
 		motor_s_fl=speedMotor_fl->rpm;
 	}
 	
@@ -93,6 +93,7 @@ class Estimator{
 		computeVel(motor_s_fl, motor_s_fr, motor_s_rl, motor_s_rr);
 		ROS_INFO ("Front-left: ( %f ) Front-right: ( %f ) Rear-left: ( %f ) Rear-right: ( %f )", motor_s_fl, motor_s_fr, motor_s_rl, motor_s_rr);
 	}
+*/
 	/*void callback_s(const project1::MotorSpeed::ConstPtr& speedMotor_fl, 
 		      const project1::MotorSpeed::ConstPtr& speedMotor_fr,
 		      const project1::MotorSpeed::ConstPtr& speedMotor_rl, 
@@ -111,8 +112,8 @@ class Estimator{
         //skid-steering velocity
         vx = ((left_wheel_speed + right_wheel_speed)/2);
 	    vy = (0);
-	    vth = ((right_wheel_speed - left_wheel_speed)/ (2 * BASELINE)); /*(vr-vl)/(2*lunghezza_asse)*/
-        ROS_INFO_STREAM ("sono nella vel");
+	    vth = ((right_wheel_speed - left_wheel_speed)/ (BASELINE)); /*(vr-vl)/(2*lunghezza_asse)*/
+        //ROS_INFO_STREAM ("sono nella vel");
 	}
 
 	void callback_p(const ros::TimerEvent&) {
@@ -136,12 +137,25 @@ class Estimator{
 
 };
 
-
+void callback_s(const project1::MotorSpeed::ConstPtr& speedMotor_fl, const project1::MotorSpeed::ConstPtr& speedMotor_fr, const project1::MotorSpeed::ConstPtr& speedMotor_rl, const project1::MotorSpeed::ConstPtr& speedMotor_rr, Estimator *robot) {
+	    ROS_INFO ("Front-left: ( %f ) Front-right: ( %f ) Rear-left: ( %f ) Rear-right: ( %f )", speedMotor_fl->rpm, speedMotor_fr->rpm, speedMotor_rl->rpm, speedMotor_rr->rpm);
+	    robot->computeVel(speedMotor_fl->rpm, speedMotor_fr->rpm, speedMotor_rl->rpm, speedMotor_rr->rpm);
+}
 
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "subBag_pubVel");
-  Estimator my_estimator;
+  ros::init(argc, argv, "subBag_pubVelo");
+  Estimator *my_estimator=NULL;
+  my_estimator = new Estimator();
+  ros::NodeHandle sub_node;
+
+  message_filters::Subscriber<project1::MotorSpeed> sub_fl(sub_node,  "/motor_speed_fl", 1);	/*mi "iscrivo ai 4 topic*/
+  message_filters::Subscriber<project1::MotorSpeed> sub_fr(sub_node,  "/motor_speed_fr", 1);
+  message_filters::Subscriber<project1::MotorSpeed> sub_rl(sub_node,  "/motor_speed_rl", 1);
+  message_filters::Subscriber<project1::MotorSpeed> sub_rr(sub_node,  "/motor_speed_rr", 1);	
+	
+  message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), sub_fl, sub_fr, sub_rl, sub_rr);
+  sync.registerCallback(boost::bind(&callback_s, _1, _2, _3, _4, my_estimator));
   ros::spin();
   return 0;
 }

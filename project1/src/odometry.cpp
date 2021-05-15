@@ -11,6 +11,9 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <math.h>
 #include <sstream>
+#include "project1/RiCentra.h"
+#include "project1/RiPosiziona.h"
+
 
 #define _USE_MATH_DEFINES
 #define STEERING_FACTOR 18.0
@@ -33,25 +36,44 @@ class Odometry{
     ros::Subscriber sub; 
   	ros::Publisher pub; 
   	ros::Timer timer1;
+    ros::ServiceServer riCentra;
+    ros::ServiceServer riPosiziona;
 
     tf2_ros::TransformBroadcaster br;
     geometry_msgs::TransformStamped transformStamped;
     nav_msgs::Odometry odom;
 
-    int initial_pose[3] = {0,0,0};
+    double initial_x;
+    double initial_y;
+    double initial_th;
 
 
 
 	public:
 
     Odometry(){
+        n.getParam("/Initial_x", initial_x);
+        n.getParam("/Initial_y", initial_y);
+        n.getParam("/Initial_th", initial_th);
+
+        x=initial_x;
+        y=initial_y;
+        th=initial_th;
+
+        ROS_INFO ("Initial pose x: ( %f ) y: ( %f ) z: ( %f )", x, y, th);
 
         //subscriber part:
-        sub = n.subscribe("/chatterVel", 1, &Odometry::callback_s, this);
+        sub = n.subscribe("/rechatterVel", 1, &Odometry::callback_s, this);
+
 
         //publisher part
 		pub = n.advertise<nav_msgs::Odometry>("/rechatterOdom", 1);
-    	
+    	ROS_INFO_STREAM ("creatore");
+        
+
+  //service part
+        riCentra = n.advertiseService("ricentra", &Odometry::ricentra, this);
+        riPosiziona = n.advertiseService("riposiziona", &Odometry::riposiziona, this);
         
         //timer1 = n.createTimer(ros::Duration(1), &Odometry::callback_p, this);
         //param initial_pose
@@ -59,19 +81,22 @@ class Odometry{
     }
 
 	void callback_s(const geometry_msgs::TwistStamped::ConstPtr& mt) {
+        ROS_INFO_STREAM ("sono nel callabak");
         vl = mt->twist.linear.x;
         va = mt->twist.angular.z;
-        eulerOdom(vl, va);
+        rkOdom(vl, va);
 	}
 
 	void eulerOdom(double vl, double va){
+        ROS_INFO_STREAM ("sono nella euleroOdom");
         x = x + vl * Ts * cos(th); /*x(t+1)=x(t) + v * T * cos(th)*/
 	    y = y + vl * Ts * sin(th);
 	    th = th + va * Ts;
+        publish();
     }
 
     void rkOdom(double vl, double va){
-        
+        publish();
         x = x + vl * Ts * cos(th + va*Ts/2);
         y = y + vl * Ts * sin(th + va*Ts/2);
         th = th + va * Ts;
@@ -131,8 +156,25 @@ class Odometry{
 
 		ROS_INFO_STREAM("sono in publish");
     }
-    
 
+
+    bool ricentra(project1::RiCentra::Request  &req, project1::RiCentra::Response  &resp)
+    {
+        ROS_INFO("Richiesta di ricentrare l'odom");
+        x=0;
+        y=0;
+        th=0;
+        return true;
+    }
+    
+    bool riposiziona(project1::RiPosiziona::Request  &req, project1::RiPosiziona::Response  &resp)
+    {
+        ROS_INFO("Richiesta di riposizionarmi in X=(%f) Y=(%f) th=(%f)", req.x, req.y, req.th);
+        x=req.x;
+        y=req.y;
+        th=req.th;
+        return true;
+    }
 	
 
 
@@ -141,10 +183,15 @@ class Odometry{
 
 
 
+
+
+
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "subBag_pubVel");
   Odometry my_Odometry;
   ros::spin();
+        
   return 0;
 }
 
