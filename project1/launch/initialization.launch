@@ -1,0 +1,12 @@
+<launch>
+    
+    <!--Initializing the pose-->
+    <rosparam param="Initial_pose">[0, 0, 0]</rosparam>
+    <!--or-->
+    <arg name="Initial_pose" default="[0, 0, 0]"/>
+    <rosparam param="Initial_pose" subst_value="True">$(arg Initial_pose)</rosparam>
+
+    <node pkg="project1" name="estimate" type="estimate" output="screen"/>
+    <node pkg="project1" name="odometry" type="odometry" output="screen"/>
+
+</launch>
