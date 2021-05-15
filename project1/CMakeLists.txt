@@ -21,10 +21,19 @@ find_package(
   
 ##)
 
+add_service_files(
+  FILES
+    RiCentra.srv
+    RiPosiziona.srv
+)
+
+
 add_message_files(
   FILES
     MotorSpeed.msg
 )
+
+
 
 generate_messages(
   DEPENDENCIES
@@ -41,6 +50,8 @@ catkin_package(
     geometry_msgs
     message_runtime
 )
+
+
 
 ## Build talker and listener
 include_directories(include ${catkin_INCLUDE_DIRS})
